@@ -1,0 +1,6 @@
+*.db
+*.pyc
+__pycache__/
+logs/
+deeep/chroma/
+warm/memories.db

@@ -1,0 +1,23 @@
+{
+    "version": "1.0",
+    "embedding": {
+        "model": "all-MiniLM-L6-v2",
+        "dimensions": 384
+    },
+    "retrieval": {
+        "hot_max_chars": 500,
+        "warm_top_k": 5,
+        "deep_top_k": 3,
+        "min_similarity": 0.4,
+        "max_total_chars": 1500
+    },
+    "decay": {
+        "half_life_days": 30,
+        "archive_threshold": 0.3,
+        "promote_threshold": 0.8
+    },
+    "storage": {
+        "sqlite_path": "~/.hermes/memory/warm/memories.db",
+        "chroma_path": "~/.hermes/memory/deep/chroma"
+    }
+}
