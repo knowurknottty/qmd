@@ -2,7 +2,10 @@
     "version": "1.0",
     "embedding": {
         "model": "all-MiniLM-L6-v2",
-        "dimensions": 384
+        "dimensions": 384,
+        "prefer_onnx": true,
+        "device": null,
+        "fallback_to_cpu": true
     },
     "retrieval": {
         "hot_max_chars": 500,

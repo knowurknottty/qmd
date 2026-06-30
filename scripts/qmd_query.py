@@ -15,6 +15,8 @@ from typing import Optional
 import chromadb
 from sentence_transformers import SentenceTransformer
 
+from qmd_embeddings import AcceleratedEmbedder, get_embedder
+
 # Paths
 CONFIG_PATH = os.path.expanduser("~/.hermes/memory/config.json")
 DB_PATH = os.path.expanduser("~/.hermes/memory/warm/memories.db")
@@ -62,14 +64,30 @@ class QMDQuery:
         # Initialize ChromaDB client
         self._chroma_client = None
         self._chroma_collection = None
-
-        logger.info("QMDQuery initialized")
+        # Initialize embedding model (lazy load)
+        self._embedder = None
+        self._embedding_backend = None
 
     @property
     def model(self):
-        if self._model is None:
-            self._model = SentenceTransformer('all-MiniLM-L6-v2')
-        return self._model
+        """Backward-compatible property returning sentence-transformers model."""
+        if self._embedder is None:
+            self._embedder = get_embedder(CONFIG_PATH)
+        return self._embedder
+
+    @property
+    def embedder(self) -> AcceleratedEmbedder:
+        """Return accelerated embedder."""
+        if self._embedder is None:
+            self._embedder = get_embedder(CONFIG_PATH)
+        return self._embedder
+
+    @property
+    def embedding_backend(self) -> Optional[str]:
+        """Return active embedding backend name."""
+        if self._embedding_backend is None:
+            self._embedding_backend = self.embedder.backend
+        return self._embedding_backend
 
     @property
     def chroma_collection(self):
@@ -198,7 +216,7 @@ class QMDQuery:
 
     def _query_deep(self, query_text: str, top_k: int = 3,
                     min_similarity: float = 0.3) -> list[MemoryRecord]:
-        """Deep tier: ChromaDB semantic search."""
+        """Deep tier: ChromaDB semantic search with accelerated embeddings."""
         records = []
 
         try:
@@ -207,8 +225,11 @@ class QMDQuery:
             if collection.count() == 0:
                 return records
 
+            # Use accelerated embedder for query embedding
+            query_embedding = self.embedder.encode_single(query_text).tolist()
+
             results = collection.query(
-                query_texts=[query_text],
+                query_embeddings=[query_embedding],
                 n_results=min(top_k, collection.count()),
                 include=["documents", "metadatas", "distances"]
             )

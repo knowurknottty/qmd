@@ -14,6 +14,8 @@ from datetime import datetime
 import chromadb
 from sentence_transformers import SentenceTransformer
 
+from qmd_embeddings import get_embedder
+
 # Paths
 CONFIG_PATH = os.path.expanduser("~/.hermes/memory/config.json")
 DB_PATH = os.path.expanduser("~/.hermes/memory/warm/memories.db")
@@ -51,15 +53,15 @@ class QMDWrite:
 
         # Lazy init
         self._model = None
+        # Lazy init
+        self._embedder = None
         self._chroma_collection = None
 
-        logger.info("QMDWrite initialized")
-
     @property
-    def model(self):
-        if self._model is None:
-            self._model = SentenceTransformer('all-MiniLM-L6-v2')
-        return self._model
+    def embedder(self):
+        if self._embedder is None:
+            self._embedder = get_embedder(CONFIG_PATH)
+        return self._embedder
 
     @property
     def chroma_collection(self):
@@ -117,7 +119,7 @@ class QMDWrite:
 
         # 2. ChromaDB
         try:
-            embedding = self.model.encode(content).tolist()
+            embedding = self.embedder.encode_single(content).tolist()
             metadata = {
                 "category": category,
                 "source": source,
@@ -184,7 +186,7 @@ class QMDWrite:
             # Update ChromaDB if content changed
             if content is not None:
                 try:
-                    embedding = self.model.encode(content).tolist()
+                    embedding = self.embedder.encode_single(content).tolist()
                     self.chroma_collection.update(
                         ids=[memory_id],
                         documents=[content],
