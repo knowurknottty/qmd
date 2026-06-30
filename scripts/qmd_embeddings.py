@@ -68,9 +68,12 @@ class AcceleratedEmbedder:
         # Fallback to sentence-transformers
         try:
             from sentence_transformers import SentenceTransformer
-            self._model = SentenceTransformer(self.model_name)
+            device_kwargs = {}
+            if self.device:
+                device_kwargs["device"] = self.device
+            self._model = SentenceTransformer(self.model_name, **device_kwargs)
             self._backend = "sentence-transformers"
-            logger.info("QMD using fallback backend: sentence-transformers")
+            logger.info(f"QMD using fallback backend: sentence-transformers (device={self.device or 'auto'})")
         except Exception as e:
             logger.error(f"Failed to load any embedding backend: {e}")
             raise RuntimeError(f"No embedding backend available: {e}")
@@ -116,9 +119,13 @@ class AcceleratedEmbedder:
             # Try to load ONNX model
             model_id = f"sentence-transformers/{self.model_name}"
             self._tokenizer = AutoTokenizer.from_pretrained(model_id)
+            # Pass device through to ONNX model if specified
+            ort_kwargs = {"provider": selected_provider}
+            if self.device and selected_provider != "CPUExecutionProvider":
+                ort_kwargs["device"] = self.device
             self._model = ORTModelForFeatureExtraction.from_pretrained(
                 model_id,
-                provider=selected_provider,
+                **ort_kwargs,
             )
             return selected_backend
         except Exception as e:
@@ -200,7 +207,8 @@ def get_embedder(config_path: Optional[str] = None) -> AcceleratedEmbedder:
         except Exception as e:
             logger.warning(f"Could not load config from {config_path}: {e}")
 
-    embedding_config = config.get("embeddings", {})
+    # Support both singular and plural config keys for backward compatibility
+    embedding_config = config.get("embedding", config.get("embeddings", {}))
     model_name = embedding_config.get("model", "all-MiniLM-L6-v2")
     prefer_onnx = embedding_config.get("prefer_onnx", True)
     device = embedding_config.get("device", None)

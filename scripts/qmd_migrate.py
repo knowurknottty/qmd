@@ -126,7 +126,7 @@ def migrate_to_sqlite(entries: list[dict], conn: sqlite3.Connection):
 def migrate_to_chroma(entries: list[dict]):
     """Insert entries into ChromaDB with embeddings."""
     import chromadb
-    from sentence_transformers import SentenceTransformer
+    from qmd_embeddings import get_embedder
 
     client = chromadb.PersistentClient(path=CHROMA_PATH)
     collection = client.get_or_create_collection(
@@ -134,7 +134,7 @@ def migrate_to_chroma(entries: list[dict]):
         metadata={"hnsw:space": "cosine"}
     )
 
-    model = SentenceTransformer('all-MiniLM-L6-v2')
+    model = get_embedder()
 
     ids = []
     documents = []
